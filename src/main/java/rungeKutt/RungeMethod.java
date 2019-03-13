@@ -11,8 +11,9 @@ public class RungeMethod {
 
     FileData data;
     double
-            h, localeps;
-
+            localeps,
+            // сохраняем текущее h для x n+1 = x n + h n
+            hn = 0;
 
     public RungeMethod() {}
 
@@ -25,7 +26,7 @@ public class RungeMethod {
         getSolution();
     }
 
-    private double f(double x){ return 3*x*x;}
+    private double f(double x){ return 12*x;}
 
     private double formula(double x, double y, double h){
         double k1 = h*f(x);
@@ -59,12 +60,14 @@ public class RungeMethod {
         double
                 x = data.getC(),
                 y = data.getY0(),
-                h = data.getH(),
+                //след. шаг
+                hnext = data.getH(),
                 A = data.getA(),
                 B = data.getB(),
                 hmin = data.getHmin(),
                 eps = data.getEps();
 
+        int precision = 18;
         String tableSpace = " ";
         FileWrite fileWrite = new FileWrite();
         fileWrite.cleanFile();
@@ -72,7 +75,7 @@ public class RungeMethod {
 
         String space = "  ";
         fileWrite.write(space + " " + "X\t\t"+space+" Y\t\t"+space+" H\t\t"+space+" Eps");
-        fileWrite.write(5, x, y, h, localeps);
+        fileWrite.write(precision, x, y, hnext, localeps);
         // если было деление шага, то при выборе след. значения
         // шага интегр. h n+1 удвоение пред шага не происходит
         boolean division = false;
@@ -85,9 +88,8 @@ public class RungeMethod {
         boolean firstH = true;
         int divisionH = 0;
 
-
         while (true) {
-            localeps = rungeEstimate(x, y, h);
+            localeps = rungeEstimate(x, y, hnext);
             // если локальная погрешность метода в точке xn + h такая,
             // то приближённое решение считается неудов. по точности и
             // выбирается новое значение шага h/=2
@@ -99,90 +101,95 @@ public class RungeMethod {
                 // нет ограничения на деление шага больше
                 firstH = false;
 
-                if(Math.abs(localeps) < eps/4.0){
-                    if(!division) {
-                        if (mult < 5) {
-                            h *= 2;
-                            mult++;
-                        }
-                    }
-                }
-                else
-                    // локальная погрешность между
-                    h = h;
-
+                // сохраняем тек. шаг h n
+                hn = hnext;
                 // проверка на конец интервала
-
-                if((B - (x + h)) < hmin){
+                if((B - (x + hnext)) < hmin){
+                    hnext = hn/2;
                     break;
                 }
                 else {
+                    // находим h n+1
+                    if(Math.abs(localeps) < eps/4.0){
+                        if(!division) {
+                            if (mult < 5) {
+                                hnext *= 2;
+                                mult++;
+                            }
+                        }
+                    }
+                    else
+                        // локальная погрешность между
+                        hnext = hnext;
+
                     // след точка
-                    x += h;
+                    x += hn;
                     y = yH;
 
-                    fileWrite.write(5, x, y, h, localeps);
+                    fileWrite.write(precision, x, y, hn, localeps);
 
                     division = false;
-                    mult = 0;
                 }
             }
             else{
                 if(firstH){
                     if(divisionH < 20){
-                        if(h/2 < hmin)
-                            h = hmin;
+                        if(hnext/2 < hmin)
+                            hnext = hmin;
                         else{
-                            h/=2;
+                            hnext/=2;
                             divisionH++;
                             division = true;
                         }
                     }
                 }
                 else
-                    if(h/2 < hmin)
-                        h = hmin;
+                    if(hnext/2 < hmin)
+                        hnext = hmin;
                     else{
-                        h/=2;
+                        hnext/=2;
                         division = true;
                     }
             }
         }
 
-        // необходимо сделать 1/2 шага до конца
+        // необходимо сделать 1 или 2 шага до конца
         if(B-x >= 2*hmin){
-            h = B - hmin - x;
-            x+=h;
-            rungeEstimate(x, y, h);
+            double xn1 = B-hmin;
+            hnext = B - hmin - x;
+            rungeEstimate(x, y, hnext);
+            // y n + 1
             y = yH;
-            fileWrite.write(5, x, y, h, localeps);
+            x += hnext;
+            fileWrite.write(precision, x, y, hnext, localeps);
 
-            x = B;
-            rungeEstimate(x, y, h);
-
+            hnext = B-x;
+            rungeEstimate(x, y, hnext);
+            // y n + 2
             y = yH;
-            fileWrite.write(5, x, y, h, localeps);
+            x += hnext;
+            fileWrite.write(precision, x, y, hnext, localeps);
         }else
             if(B - x <= 1.5*hmin){
                 x = B;
-                rungeEstimate(x, y, h);
+                rungeEstimate(x, y, hnext);
                 y = yH;
 
-                fileWrite.write(5, x, y, h, localeps);
+                fileWrite.write(precision, x, y, hnext, localeps);
             }
             else{
                 x = x + (B - hmin)/2.0;
-                rungeEstimate(x, y, h);
+                rungeEstimate(x, y, hnext);
 
                 y = yH;
 
-                fileWrite.write(5, x, y, h, localeps);
+                fileWrite.write(precision, x, y, hnext, localeps);
 
                 x = B;
-                rungeEstimate(x, y, h);
+                rungeEstimate(x, y, hnext);
                 y = yH;
 
-                fileWrite.write(5, x, y, h, localeps);
+                fileWrite.write(precision, x, y, hnext, localeps);
         }
     }
 }

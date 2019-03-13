@@ -27,7 +27,7 @@ public class FileWrite {
 
                 if(tmp.length == 4){
                     file.print("  |  ");
-                    file.printf(template,tmp[3]);
+                    file.print(tmp[3]);
                 }
             }
             file.println();
