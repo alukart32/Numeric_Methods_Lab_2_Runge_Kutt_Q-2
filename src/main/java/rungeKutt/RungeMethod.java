@@ -26,7 +26,16 @@ public class RungeMethod {
         getSolution();
     }
 
-    private double f(double x){ return 12*x;}
+    private double getMachineEps(){
+        double R = 1.0;
+
+        while((1.0+R) > 1){
+            R/=2;
+        }
+        return 2*R;
+    }
+
+    private double f(double x){ return 2*x;}
 
     private double formula(double x, double y, double h){
         double k1 = h*f(x);
@@ -49,7 +58,10 @@ public class RungeMethod {
         double yh2 = formula(startX + startH/2, yh1, startH/2);
 
         // главный часть погрешности метода
-        return rungePrecision(yH, yh2);
+        if(rungePrecision(yH, yh2) < getMachineEps())
+            return 0.0;
+        else
+            return rungePrecision(yH, yh2);
     }
 
     private  double rungePrecision(double yh1, double yh2){
@@ -157,37 +169,38 @@ public class RungeMethod {
         if(B-x >= 2*hmin){
             double xn1 = B-hmin;
             hnext = B - hmin - x;
-            rungeEstimate(x, y, hnext);
+            localeps = rungeEstimate(x, y, hnext);
             // y n + 1
             y = yH;
             x += hnext;
             fileWrite.write(precision, x, y, hnext, localeps);
 
             hnext = B-x;
-            rungeEstimate(x, y, hnext);
+            localeps = rungeEstimate(x, y, hnext);
             // y n + 2
             y = yH;
             x += hnext;
             fileWrite.write(precision, x, y, hnext, localeps);
         }else
             if(B - x <= 1.5*hmin){
-                x = B;
-                rungeEstimate(x, y, hnext);
+                hnext = B-x;
+                localeps = rungeEstimate(x, y, hnext);
+                x+=hnext;
                 y = yH;
-
                 fileWrite.write(precision, x, y, hnext, localeps);
             }
             else{
-                x = x + (B - hmin)/2.0;
-                rungeEstimate(x, y, hnext);
+                hnext = (B - x)/2.0;
+                localeps = rungeEstimate(x, y, hnext);
 
                 y = yH;
-
+                x+=hnext;
                 fileWrite.write(precision, x, y, hnext, localeps);
 
-                x = B;
-                rungeEstimate(x, y, hnext);
+                hnext = B - x;
+                localeps = rungeEstimate(x, y, hnext);
                 y = yH;
+                x+=hnext;
 
                 fileWrite.write(precision, x, y, hnext, localeps);
         }
