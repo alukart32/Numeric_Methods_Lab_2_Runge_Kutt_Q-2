@@ -15,11 +15,59 @@ public class RungeMethod {
             // сохраняем текущее h для x n+1 = x n + h n
             hn = 0;
 
+    double
+            x,
+            y,
+            //след. шаг
+            hnext,
+            A,
+            B,
+            hmin,
+            eps;
+
+    boolean getHmin = false;
+    // точки с достигнутой точностью
+    int precisionPoints = 0;
+    // точки с недостигнутой точностью
+    int notPrecisionPoints = 0;
+    // точки интегрирование где происходили с 2*hmin
+    int hminPoints = 0;
+
+    // если было деление шага, то при выборе след. значения
+    // шага интегр. h n+1 удвоение пред шага не происходит
+    boolean division = false;
+
+    // удвоение шага может быть ограничено при выборе млед шага
+    // не более 5
+    int mult = 0;
+
+    // ограничение перовоначального шага < 20
+    boolean firstH = true;
+    int divisionH = 0;
+
+    // true = справо | налево
+    // false = слево | напрво
+    boolean direction;
+
+    FileWrite fileWrite = new FileWrite();
+    int precision = 18;
+    String tableSpace = " ";
+
     public RungeMethod() {}
 
     public RungeMethod(FileData data) {
         this.data = data;
         data.setData();
+
+        x = data.getC();
+        y = data.getY0();
+        //след. шаг
+        hnext = data.getH();
+        A = data.getA();
+        B = data.getB();
+        hmin = data.getHmin();
+        eps = data.getEps();
+        direction = data.isDirection();
     }
 
     public void solve(){
@@ -35,7 +83,7 @@ public class RungeMethod {
         return 2*R;
     }
 
-    private double f(double x, double y){ return 2*x;}
+    private double f(double x, double y){ return 6*x*x;}
 
     private double embedeedFormula(double x, double y, double h){
         return  1;
@@ -69,47 +117,80 @@ public class RungeMethod {
     }
 
     private  double rungePrecision(double y1, double y2){
-        return Math.abs((Math.abs(y2) - Math.abs(y1))/(0.75));
+        return Math.abs(y2 - y1)/(0.75);
     }
 
-    private void getSolution(){
-        double
-                x = data.getC(),
-                y = data.getY0(),
-                //след. шаг
-                hnext = data.getH(),
-                A = data.getA(),
-                B = data.getB(),
-                hmin = data.getHmin(),
-                eps = data.getEps();
+    private boolean step() {
+        // дальнейшее интегрирование будет происходить из точки
+        // x n+1 = x n + h n с шагом h n+1
+        // шаг h n+1 выбирается так:
 
-        // true = справо | налево
-        // false = слево | напрво
-        boolean direction = data.isDirection();
+        // нет ограничения на деление шага больше
+        firstH = false;
+
+        // сохраняем тек. шаг h n
+        hn = hnext;
+        // проверка на конец интервала
+        if ((direction ? x + hnext - A : B - (x + hnext)) < hmin) {
+            hnext = hn / 2;
+            return false;
+        } else {
+            // находим h n+1
+            if (Math.abs(localeps) < eps / 4.0) {
+                if (!division) {
+                    if (mult < 5) {
+                        hnext *= 2;
+                        mult++;
+                    }
+                }
+            } else
+                // локальная погрешность между
+                hnext = hnext;
+
+            // след точка
+            x += hn;
+            y = Math.abs(yH);
+
+            precisionPoints++;
+
+            fileWrite.write(precision, x, y, Math.abs(hn), localeps);
+
+            division = false;
+
+            return true;
+        }
+    }
+
+    private void atLastPoint() {
+
+        hnext = direction ? x - A : B - x;
+        localeps = rungeEstimate(x, y, hnext);
+        y = yH;
+        x += direction ? -Math.abs(hnext) : hnext;
+
+        if (!(Math.abs(localeps) > eps)) {
+            precisionPoints++;
+        } else {
+            System.out.println("Последняя точка");
+        }
+    }
+
+    private void actionLastPoint(){
+        y = yH;
+        x += direction ? -Math.abs(hnext) : hnext;
+        fileWrite.write(precision, x, y, Math.abs(hnext), localeps);
+    }
+    private void getSolution(){
 
         if(direction)
             hnext = -hnext;
 
-        int precision = 18;
-        String tableSpace = " ";
-        FileWrite fileWrite = new FileWrite();
         fileWrite.cleanFile();
         fileWrite.setSpace(tableSpace);
 
         String space = "            ";
         fileWrite.write(space + " " + "X\t\t"+space+" Y\t\t"+space+" H\t\t"+space+" Eps");
         fileWrite.write(precision, x, y, hnext, localeps);
-        // если было деление шага, то при выборе след. значения
-        // шага интегр. h n+1 удвоение пред шага не происходит
-        boolean division = false;
-
-        // удвоение шага может быть ограничено при выборе млед шага
-        // не более 5
-        int mult = 0;
-
-        // ограничение перовоначального шага < 20
-        boolean firstH = true;
-        int divisionH = 0;
 
         while (true) {
             localeps = rungeEstimate(x, y, hnext);
@@ -117,62 +198,35 @@ public class RungeMethod {
             // то приближённое решение считается неудов. по точности и
             // выбирается новое значение шага h/=2
             if (!(Math.abs(localeps)>eps)){
-                // дальнейшее интегрирование будет происходить из точки
-                // x n+1 = x n + h n с шагом h n+1
-                // шаг h n+1 выбирается так:
-
-                // нет ограничения на деление шага больше
-                firstH = false;
-
-                // сохраняем тек. шаг h n
-                hn = hnext;
-                // проверка на конец интервала
-                if((direction ? x + hnext - A : B - (x + hnext)) < hmin){
-                    hnext = hn/2;
+                // если вышли за границу отрезка, то останов
+                if(!step())
                     break;
-                }
-                else {
-                    // находим h n+1
-                    if(Math.abs(localeps) < eps/4.0){
-                        if(!division) {
-                            if (mult < 5) {
-                                hnext *= 2;
-                                mult++;
-                            }
-                        }
-                    }
-                    else
-                        // локальная погрешность между
-                        hnext = hnext;
-
-                    // след точка
-                    x += hn;
-                    y = Math.abs(yH);
-
-                    fileWrite.write(precision, x, y, Math.abs(hn), localeps);
-
-                    division = false;
-                }
             }
             else{
-                if(firstH){
-                    if(divisionH < 25){
-                        if(Math.abs(hnext/2.0) < 2*hmin)
-                            hnext = direction? -2*hmin : 2*hmin;
-                        else{
-                            hnext/=2;
-                            divisionH++;
-                            division = true;
+                if(getHmin){
+                    notPrecisionPoints++;
+                    if(!step())
+                        break;
+                    getHmin = false;
+                }else {
+                    if (firstH) {
+                        if (divisionH < 25) {
+                            if (Math.abs(hnext / 2.0) < 2 * hmin) {
+                                hnext = direction ? -2 * hmin : 2 * hmin;
+                                getHmin = true;
+                            } else {
+                                hnext /= 2;
+                                divisionH++;
+                                division = true;
+                            }
                         }
-                    }
-                }
-                else
-                    if(Math.abs(hnext/2.0) < 2*hmin)
-                        hnext = direction? -2*hmin : 2*hmin;
-                    else{
-                        hnext/=2;
+                    } else if (Math.abs(hnext / 2.0) < 2 * hmin)
+                        hnext = direction ? -2 * hmin : 2 * hmin;
+                    else {
+                        hnext /= 2;
                         division = true;
                     }
+                }
             }
         }
 
@@ -180,39 +234,37 @@ public class RungeMethod {
         if((direction? x-A:B-x) >= 2*hmin){
             hnext = direction ? -(x - hmin - A) : B - hmin - x;
             localeps = rungeEstimate(x, y, hnext);
-            // y n + 1
-            y = yH;
-            x += direction ? -Math.abs(hnext) : hnext;
-            fileWrite.write(precision, x, y, Math.abs(hnext), localeps);
 
+            if (!(Math.abs(localeps)>eps)) {
+                precisionPoints++;
+            }
+
+            // y n + 1
+            actionLastPoint();
             hnext = direction ? -x - A : B-x;
             localeps = rungeEstimate(x, y, hnext);
+
+            if (!(Math.abs(localeps)>eps)) {
+                precisionPoints++;
+            }
             // y n + 2
-            y = yH;
-            x += direction ? -Math.abs(hnext) : hnext;
-            fileWrite.write(precision, x, y, Math.abs(hnext), localeps);
+            actionLastPoint();
         }else
             if((direction ? x - A : B - x) <= 1.5*hmin){
-                hnext = direction ? x - A : B - x;
-                localeps = rungeEstimate(x, y, hnext);
-                x += direction ? -Math.abs(hnext) : hnext;
-                y = yH;
-                fileWrite.write(precision, x, y, Math.abs(hn), localeps);
+                atLastPoint();
             }
             else{
                 hnext = (direction ? x - A : B - x)/2.0;
                 localeps = rungeEstimate(x, y, hnext);
 
-                y = yH;
-                x += direction ? -Math.abs(hnext) : hnext;
-                fileWrite.write(precision, x, y, hnext, localeps);
+                if (!(Math.abs(localeps)>eps)) {
+                    precisionPoints++;
+                }
+                actionLastPoint();
+                atLastPoint();
+            }
 
-                hnext = direction ? x - A : B - x;
-                localeps = rungeEstimate(x, y, hnext);
-                y = yH;
-                x += direction ? -Math.abs(hnext) : hnext;
-
-                fileWrite.write(precision, x, y, hnext, localeps);
-        }
+        fileWrite.write("\n\nДостигнута точность: " + precisionPoints);
+        fileWrite.write("Достигнута точность: " + notPrecisionPoints);
     }
 }
