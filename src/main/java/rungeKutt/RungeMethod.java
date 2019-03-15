@@ -35,7 +35,11 @@ public class RungeMethod {
         return 2*R;
     }
 
-    private double f(double x, double y){ return 3*x*x;}
+    private double f(double x, double y){ return 2*x;}
+
+    private double embedeedFormula(double x, double y, double h){
+        return  1;
+    }
 
     private double formula(double x, double y, double h){
         double k1 = h*f(x,y);
@@ -64,8 +68,8 @@ public class RungeMethod {
             return rungePrecision(yH, yh2);
     }
 
-    private  double rungePrecision(double yh1, double yh2){
-        return Math.abs((yh2 - yh1)/(0.75));
+    private  double rungePrecision(double y1, double y2){
+        return Math.abs((Math.abs(y2) - Math.abs(y1))/(0.75));
     }
 
     private void getSolution(){
@@ -78,6 +82,13 @@ public class RungeMethod {
                 B = data.getB(),
                 hmin = data.getHmin(),
                 eps = data.getEps();
+
+        // true = справо | налево
+        // false = слево | напрво
+        boolean direction = data.isDirection();
+
+        if(direction)
+            hnext = -hnext;
 
         int precision = 18;
         String tableSpace = " ";
@@ -116,7 +127,7 @@ public class RungeMethod {
                 // сохраняем тек. шаг h n
                 hn = hnext;
                 // проверка на конец интервала
-                if((B - (x + hnext)) < hmin){
+                if((direction ? x + hnext - A : B - (x + hnext)) < hmin){
                     hnext = hn/2;
                     break;
                 }
@@ -136,9 +147,9 @@ public class RungeMethod {
 
                     // след точка
                     x += hn;
-                    y = yH;
+                    y = Math.abs(yH);
 
-                    fileWrite.write(precision, x, y, hn, localeps);
+                    fileWrite.write(precision, x, y, Math.abs(hn), localeps);
 
                     division = false;
                 }
@@ -146,8 +157,8 @@ public class RungeMethod {
             else{
                 if(firstH){
                     if(divisionH < 25){
-                        if(hnext/2 < 2*hmin)
-                            hnext = 2*hmin;
+                        if(Math.abs(hnext/2.0) < 2*hmin)
+                            hnext = direction? -2*hmin : 2*hmin;
                         else{
                             hnext/=2;
                             divisionH++;
@@ -156,8 +167,8 @@ public class RungeMethod {
                     }
                 }
                 else
-                    if(hnext/2 < 2*hmin)
-                        hnext = 2*hmin;
+                    if(Math.abs(hnext/2.0) < 2*hmin)
+                        hnext = direction? -2*hmin : 2*hmin;
                     else{
                         hnext/=2;
                         division = true;
@@ -166,41 +177,40 @@ public class RungeMethod {
         }
 
         // необходимо сделать 1 или 2 шага до конца
-        if(B-x >= 2*hmin){
-            double xn1 = B-hmin;
-            hnext = B - hmin - x;
+        if((direction? x-A:B-x) >= 2*hmin){
+            hnext = direction ? -(x - hmin - A) : B - hmin - x;
             localeps = rungeEstimate(x, y, hnext);
             // y n + 1
             y = yH;
-            x += hnext;
-            fileWrite.write(precision, x, y, hnext, localeps);
+            x += direction ? -Math.abs(hnext) : hnext;
+            fileWrite.write(precision, x, y, Math.abs(hnext), localeps);
 
-            hnext = B-x;
+            hnext = direction ? -x - A : B-x;
             localeps = rungeEstimate(x, y, hnext);
             // y n + 2
             y = yH;
-            x += hnext;
-            fileWrite.write(precision, x, y, hnext, localeps);
+            x += direction ? -Math.abs(hnext) : hnext;
+            fileWrite.write(precision, x, y, Math.abs(hnext), localeps);
         }else
-            if(B - x <= 1.5*hmin){
-                hnext = B-x;
+            if((direction ? x - A : B - x) <= 1.5*hmin){
+                hnext = direction ? x - A : B - x;
                 localeps = rungeEstimate(x, y, hnext);
-                x+=hnext;
+                x += direction ? -Math.abs(hnext) : hnext;
                 y = yH;
-                fileWrite.write(precision, x, y, hnext, localeps);
+                fileWrite.write(precision, x, y, Math.abs(hn), localeps);
             }
             else{
-                hnext = (B - x)/2.0;
+                hnext = (direction ? x - A : B - x)/2.0;
                 localeps = rungeEstimate(x, y, hnext);
 
                 y = yH;
-                x+=hnext;
+                x += direction ? -Math.abs(hnext) : hnext;
                 fileWrite.write(precision, x, y, hnext, localeps);
 
-                hnext = B - x;
+                hnext = direction ? x - A : B - x;
                 localeps = rungeEstimate(x, y, hnext);
                 y = yH;
-                x+=hnext;
+                x += direction ? -Math.abs(hnext) : hnext;
 
                 fileWrite.write(precision, x, y, hnext, localeps);
         }
