@@ -35,11 +35,11 @@ public class RungeMethod {
         return 2*R;
     }
 
-    private double f(double x){ return 2*x;}
+    private double f(double x, double y){ return 3*x*x;}
 
     private double formula(double x, double y, double h){
-        double k1 = h*f(x);
-        double k2 = h*f(x+h);
+        double k1 = h*f(x,y);
+        double k2 = h*f(x+h,y+k1);
         double result = y + 0.5*(k1 + k2);
 
         return result;
@@ -58,7 +58,7 @@ public class RungeMethod {
         double yh2 = formula(startX + startH/2, yh1, startH/2);
 
         // главный часть погрешности метода
-        if(rungePrecision(yH, yh2) < getMachineEps())
+        if(rungePrecision(yH, yh2) < getMachineEps()*10)
             return 0.0;
         else
             return rungePrecision(yH, yh2);
@@ -85,7 +85,7 @@ public class RungeMethod {
         fileWrite.cleanFile();
         fileWrite.setSpace(tableSpace);
 
-        String space = "  ";
+        String space = "            ";
         fileWrite.write(space + " " + "X\t\t"+space+" Y\t\t"+space+" H\t\t"+space+" Eps");
         fileWrite.write(precision, x, y, hnext, localeps);
         // если было деление шага, то при выборе след. значения
@@ -145,9 +145,9 @@ public class RungeMethod {
             }
             else{
                 if(firstH){
-                    if(divisionH < 20){
-                        if(hnext/2 < hmin)
-                            hnext = hmin;
+                    if(divisionH < 25){
+                        if(hnext/2 < 2*hmin)
+                            hnext = 2*hmin;
                         else{
                             hnext/=2;
                             divisionH++;
@@ -156,8 +156,8 @@ public class RungeMethod {
                     }
                 }
                 else
-                    if(hnext/2 < hmin)
-                        hnext = hmin;
+                    if(hnext/2 < 2*hmin)
+                        hnext = 2*hmin;
                     else{
                         hnext/=2;
                         division = true;

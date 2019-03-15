@@ -31,7 +31,7 @@ public class FileWrite {
                 }
             }
             file.println();
-            file.print("-------------------------------------------");
+            file.print("----------------------------------------------------------------------------------------------------");
         }catch (IOException exp){
             pw.println("Error!!!");
             pw.println("File writing handling problem!");
