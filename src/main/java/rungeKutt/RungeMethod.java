@@ -83,7 +83,7 @@ public class RungeMethod {
         return 2*R;
     }
 
-    private double f(double x, double y){ return 6*x*x;}
+    private double f(double x, double y){ return 1;}
 
     private double embedeedFormula(double x, double y, double h){
         return  1;
@@ -131,7 +131,7 @@ public class RungeMethod {
         // сохраняем тек. шаг h n
         hn = hnext;
         // проверка на конец интервала
-        if ((direction ? x + hnext - A : B - (x + hnext)) < hmin) {
+        if ((direction ? x + hnext - A : B - (x + hnext)) < hmin ) {
             hnext = hn / 2;
             return false;
         } else {
@@ -151,7 +151,10 @@ public class RungeMethod {
             x += hn;
             y = Math.abs(yH);
 
-            precisionPoints++;
+            if(!getHmin)
+                precisionPoints++;
+            else
+                hminPoints++;
 
             fileWrite.write(precision, x, y, Math.abs(hn), localeps);
 
@@ -161,25 +164,28 @@ public class RungeMethod {
         }
     }
 
-    private void atLastPoint() {
-
+    private void lastStep() {
         hnext = direction ? x - A : B - x;
         localeps = rungeEstimate(x, y, hnext);
         y = yH;
         x += direction ? -Math.abs(hnext) : hnext;
 
-        if (!(Math.abs(localeps) > eps)) {
-            precisionPoints++;
-        } else {
-            System.out.println("Последняя точка");
-        }
+        checkGetHminAtLastPoints();
     }
 
-    private void actionLastPoint(){
+    private void actionLastStep(){
         y = yH;
         x += direction ? -Math.abs(hnext) : hnext;
         fileWrite.write(precision, x, y, Math.abs(hnext), localeps);
     }
+
+    public void checkGetHminAtLastPoints(){
+        if(!(Math.abs(hnext) == hmin))
+            precisionPoints++;
+        else
+            hminPoints++;
+    }
+
     private void getSolution(){
 
         if(direction)
@@ -210,7 +216,7 @@ public class RungeMethod {
                     getHmin = false;
                 }else {
                     if (firstH) {
-                        if (divisionH < 25) {
+                        if (divisionH < 30) {
                             if (Math.abs(hnext / 2.0) < 2 * hmin) {
                                 hnext = direction ? -2 * hmin : 2 * hmin;
                                 getHmin = true;
@@ -220,8 +226,10 @@ public class RungeMethod {
                                 division = true;
                             }
                         }
-                    } else if (Math.abs(hnext / 2.0) < 2 * hmin)
+                    } else if (Math.abs(hnext / 2.0) < 2 * hmin) {
                         hnext = direction ? -2 * hmin : 2 * hmin;
+                        getHmin = true;
+                    }
                     else {
                         hnext /= 2;
                         division = true;
@@ -235,36 +243,30 @@ public class RungeMethod {
             hnext = direction ? -(x - hmin - A) : B - hmin - x;
             localeps = rungeEstimate(x, y, hnext);
 
-            if (!(Math.abs(localeps)>eps)) {
-                precisionPoints++;
-            }
-
+            checkGetHminAtLastPoints();
             // y n + 1
-            actionLastPoint();
+            actionLastStep();
             hnext = direction ? -x - A : B-x;
             localeps = rungeEstimate(x, y, hnext);
 
-            if (!(Math.abs(localeps)>eps)) {
-                precisionPoints++;
-            }
+            checkGetHminAtLastPoints();
             // y n + 2
-            actionLastPoint();
+            actionLastStep();
         }else
             if((direction ? x - A : B - x) <= 1.5*hmin){
-                atLastPoint();
+                lastStep();
             }
             else{
                 hnext = (direction ? x - A : B - x)/2.0;
                 localeps = rungeEstimate(x, y, hnext);
 
-                if (!(Math.abs(localeps)>eps)) {
-                    precisionPoints++;
-                }
-                actionLastPoint();
-                atLastPoint();
+                checkGetHminAtLastPoints();
+                actionLastStep();
+                lastStep();
             }
 
         fileWrite.write("\n\nДостигнута точность: " + precisionPoints);
-        fileWrite.write("Достигнута точность: " + notPrecisionPoints);
+        fileWrite.write("Не достигнута точность: " + notPrecisionPoints);
+        fileWrite.write("Интегрирование с hmin: " + hminPoints);
     }
 }
